@@ -3,7 +3,7 @@ function p = asteroid_params()
     rho = 2000; % [kg/m^3]
     R1 = 2000; % [m]
     R2 = 1000; % [m]
-    axis = [0; 0; 1];
+    axis = [1; 0; 0];
     
     % asteroid masses, positions (COM at origin)
     G = 6.674e-11; 
@@ -21,4 +21,6 @@ function p = asteroid_params()
     p.mu2 = G*M2;
     p.r1 = r1;
     p.r2 = r2;
+    p.R1 = R1;
+    p.R2 = R2;
 end

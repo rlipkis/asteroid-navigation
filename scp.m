@@ -1,4 +1,4 @@
-function [s, u] = scp(s_ref, u_ref, ub, Q, R, Qf, goal_state, s0, n_steps, dt, p)
+function [s, u] = scp(s_ref, u_ref, u_ub, Q, R, Qf, sf, s0, n_steps, dt, p)
     %% indexing 
     z_ref = [s_ref; u_ref];
     n = 6;
@@ -9,11 +9,17 @@ function [s, u] = scp(s_ref, u_ref, ub, Q, R, Qf, goal_state, s0, n_steps, dt, p
     s_end = @(i) i*n;
     u_start = @(i) u_shift + (i-1)*m + 1;
     u_end = @(i) u_shift + i*m;
+    
+    %% bounds
+    ub = 10000*ones(n_var, 1);
+    lb = -ub;
+    ub(u_start(1):end) = u_ub;
+    lb(u_start(1):end) = -u_ub;
 
     %% target state
     z0 = zeros(n_var, 1);
     for i=1:n_steps
-        z0(s_start(i):s_end(i)) = goal_state;
+        z0(s_start(i):s_end(i)) = sf;
     end
 
     %% build cost matrix
@@ -51,8 +57,8 @@ function [s, u] = scp(s_ref, u_ref, ub, Q, R, Qf, goal_state, s0, n_steps, dt, p
     d(s_start(1):s_end(1)) = s0;
     
     % trust radius
-    rho = 0.5;
-
+    rho = 10.0;
+    
     %% optimization
     cvx_begin quiet
 
@@ -61,21 +67,19 @@ function [s, u] = scp(s_ref, u_ref, ub, Q, R, Qf, goal_state, s0, n_steps, dt, p
 
         minimize(cost)
         subject to
-            % dynamics constraints
-            C*z == d;
-            % control bounds
-            for i = 1:n_steps
-                norm(z(u_start(i):u_end(i))) <= ub
-            end
-            % trust region
-            abs(z - z_ref) <= rho;
+        % dynamics constraints
+        C*z == d;
+        % bounds
+        lb <= z <= ub;
+        % trust region
+        abs(z - z_ref) <= rho;
     cvx_end
 
     var = z;
-
     s = var(1:n*n_steps);
-    u = var(u_shift+1:(n+m)*n_steps);
+    u = var(u_shift+1:end);
     
     % printing
-    fprintf('Current cost: %f \n', (var - z0)'*M*(var - z0))
+    fprintf('%s / ', cvx_status)
+    fprintf('current cost: %f \n', (var - z0)'*M*(var - z0))
 end
