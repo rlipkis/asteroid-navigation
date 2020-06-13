@@ -15,6 +15,15 @@ function [s, u] = scp(s_ref, u_ref, u_ub, Q, R, Qf, sf, s0, n_steps, dt, p)
     lb = -ub;
     ub(u_start(1):end) = u_ub;
     lb(u_start(1):end) = -u_ub;
+    
+    %% linear exterior constraints
+    rs1 = zeros(3, n_steps);
+    rs2 = zeros(3, n_steps);
+    for i = 1:n_steps
+        r0 = z_ref(s_start(i):s_start(i)+2);
+        rs1(:,i) = p.r1 + p.R1*(r0 - p.r1)/norm(r0 - p.r1);
+        rs2(:,i) = p.r2 + p.R2*(r0 - p.r2)/norm(r0 - p.r2);
+    end
 
     %% target state
     z0 = zeros(n_var, 1);
@@ -24,7 +33,7 @@ function [s, u] = scp(s_ref, u_ref, u_ub, Q, R, Qf, sf, s0, n_steps, dt, p)
 
     %% build cost matrix
     M = zeros(n_var);
-    for i=1:n_steps
+    for i = 1:n_steps
         if i < n_steps
             M(s_start(i):s_end(i), s_start(i):s_end(i)) = Q;
         else
@@ -57,7 +66,29 @@ function [s, u] = scp(s_ref, u_ref, u_ub, Q, R, Qf, sf, s0, n_steps, dt, p)
     d(s_start(1):s_end(1)) = s0;
     
     % trust radius
-    rho = 10.0;
+    rho = 5.0; % 10.0;
+    
+%     % debug
+%     i = 1;
+%     figure
+%     plot3(z_ref(s_start(i)),z_ref(s_start(i)+1),z_ref(s_start(i)+2),'o');
+%     axis equal
+%     hold on;
+%     plot3(p.r1(1),p.r1(2),p.r1(3),'*')
+%     plot3(rs1(1,i),rs1(2,i),rs1(3,i),'x')
+
+%     % debug
+%     ctr = 0;
+%     for i = 1:n_steps
+%         if dot(z_ref(s_start(i):s_start(i)+2) - rs1(:,i), rs1(:,i) - p.r1) < 0
+%             ctr = ctr + 1;
+%         end
+%         if dot(z_ref(s_start(i):s_start(i)+2) - rs2(:,i), rs2(:,i) - p.r2) < 0
+%             ctr = ctr + 1;
+%         end
+%     end
+%     ctr
+    
     
     %% optimization
     cvx_begin quiet
@@ -71,6 +102,11 @@ function [s, u] = scp(s_ref, u_ref, u_ub, Q, R, Qf, sf, s0, n_steps, dt, p)
         C*z == d;
         % bounds
         lb <= z <= ub;
+%         % exterior constraints
+%         for i = 1:n_steps
+%             dot(z(s_start(i):s_start(i)+2) - rs1(:,i), rs1(:,i) - p.r1) >= 0;
+%             dot(z(s_start(i):s_start(i)+2) - rs2(:,i), rs2(:,i) - p.r2) >= 0;
+%         end
         % trust region
         abs(z - z_ref) <= rho;
     cvx_end

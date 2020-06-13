@@ -3,11 +3,14 @@ function [A, B] = linear_dynamics(s_ref, p)
     r = s_ref(1:3);
     v = s_ref(4:6);
     
+    % interior correction
+    [corr1, corr2] = correction(r, p);
+    
     % dynamics
     A = zeros(6);
     A(1:3,4:6) = eye(3);
-    A = A + A_build(r - p.r1, p.mu1);
-    A = A + A_build(r - p.r2, p.mu2);
+    A = A + corr1*A_build(r - p.r1, p.mu1);
+    A = A + corr2*A_build(r - p.r2, p.mu2);
     
     B = zeros(6,3);
     B(4:6,:) = eye(3);
